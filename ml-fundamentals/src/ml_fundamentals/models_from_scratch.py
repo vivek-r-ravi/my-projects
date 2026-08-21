@@ -365,3 +365,144 @@ class KMeans:
     def predict(self, X):
         # Return nearest-centroid cluster for each row
         return self.assign_clusters(X)
+
+
+class GaussianMixture1D:
+    def __init__(self, k=2, max_iters=100):
+        self.k = k
+        self.max_iters = max_iters
+        self.means = None
+        self.variances = None
+        self.weights = None
+
+    @staticmethod
+    def gaussian_pdf(x, mean, variance):
+        return math.exp(-(x - mean) ** 2 / (2 * variance)) / math.sqrt(
+            2 * math.pi * variance
+        )
+
+    def e_step(self, X):
+        res = []
+        for x in X:
+            total = 0.0
+            prob = []
+            for k in range(self.k):
+                curr = self.weights[k] * self.gaussian_pdf(
+                    x, self.means[k], self.variances[k]
+                )
+                prob.append(curr)
+                total += curr
+            if total != 0:
+                res.append([p / total for p in prob])
+        return res
+
+    def m_step(self, X, responsibilities):
+        # Update means, variances and mixture weights
+        n = len(X)
+
+        for k in range(self.k):
+            Nk = sum(responsibilities[i][k] for i in range(n))
+
+            mean = (
+                sum(responsibilities[i][k] * X[i] for i in range(n))
+                / Nk
+            )
+
+            variance = (
+                sum(
+                    responsibilities[i][k] * (X[i] - mean) ** 2
+                    for i in range(n)
+                )
+                / Nk
+            )
+
+            weight = Nk / n
+
+            self.means[k] = mean
+            self.variances[k] = variance
+            self.weights[k] = weight
+
+
+class StandardScaler:
+    def __init__(self):
+        self.means = None
+        self.stds = None
+
+    def fit(self, X):
+        rows, cols = len(X), len(X[0])
+
+        self.means = [
+            sum(X[i][j] for i in range(rows)) / rows
+            for j in range(cols)
+        ]
+
+        self.stds = []
+
+        for j in range(cols):
+            variance = sum(
+                (X[i][j] - self.means[j]) ** 2
+                for i in range(rows)
+            ) / rows
+
+            self.stds.append(variance ** 0.5)
+
+    def transform(self, X):
+        rows, cols = len(X), len(X[0])
+
+        return [
+            [
+                (X[i][j] - self.means[j]) / self.stds[j]
+                if self.stds[j] != 0
+                else 0.0
+                for j in range(cols)
+            ]
+            for i in range(rows)
+        ]
+
+    def fit_transform(self, X):
+        self.fit(X)
+        return self.transform(X)
+
+
+class NeuralNetwork:
+    def __init__(self, W1, b1, W2, b2):
+        # W1: hidden_size x input_size
+        # b1: hidden_size
+        # W2: output_size x hidden_size
+        # b2: output_size
+        self.W1 = W1
+        self.b1 = b1
+        self.W2 = W2
+        self.b2 = b2
+
+    @staticmethod
+    def sigmoid(x):
+        return 1 / (1 + math.exp(-x))
+
+    @staticmethod
+    def relu(x):
+        return max(0, x)
+
+    @staticmethod
+    def linear_layer(x, W, b):
+        output_size = len(W)
+        input_size = len(x)
+        return [
+            sum(W[j][i] * x[i] for i in range(input_size)) + b[j]
+            for j in range(hidden_size)
+        ]
+
+    def forward(self, x):
+        # Hidden layer:
+        # z1 = W1 x + b1
+        # a1 = ReLU(z1)
+        #
+        # Output layer:
+        # z2 = W2 a1 + b2
+        # output = sigmoid(z2[0])
+        #
+        # Assume one output neuron.
+        z1 = self.linear_layer(x, self.W1, self.b1)
+        a1 = [self.relu(z) for z in z1]
+        z2 = self.linear_layer(a1, self.W2, self.b2)
+        return self.sigmoid(z2[0])
